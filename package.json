@@ -1,0 +1,10 @@
+{
+  "name": "pocket-fm-aop-dashboard",
+  "version": "1.0.0",
+  "description": "Pocket FM Annual Operating Plan Dashboard - Live from Google Sheets",
+  "private": true,
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  }
+}
