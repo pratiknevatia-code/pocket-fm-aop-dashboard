@@ -209,8 +209,27 @@ function colorVal(n) {
 }
 
 async function fetchSheet(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
-  const resp = await fetch(url);
+  // Primary: Google Visualization API (CORS-friendly)
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  try {
+    const resp = await fetch(gvizUrl);
+    if (resp.ok) {
+      const text = await resp.text();
+      return parseCSV(text);
+    }
+  } catch(e) { /* fall through */ }
+  // Fallback: direct export
+  const exportUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+  try {
+    const resp = await fetch(exportUrl);
+    if (resp.ok) {
+      const text = await resp.text();
+      return parseCSV(text);
+    }
+  } catch(e) { /* fall through */ }
+  // Fallback 2: CORS proxy
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`)}`;
+  const resp = await fetch(proxyUrl);
   const text = await resp.text();
   return parseCSV(text);
 }
