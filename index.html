@@ -256,15 +256,60 @@ async function loadAllData() {
 
 function parseOverallSummary() {
   const rows = DATA.overall;
-  const d = { overall: {}, geos: { 'US + ROW': {}, EU: {}, India: {}, LATAM: {} } };
-  const fyColsOverall = { 'FY 23-24': 2, 'FY 24-25': 3, 'FY 25-26': 4, 'FY 26-27': 5, 'FY 27-28': 6 };
-  const geoStartCols = { 'US + ROW': 8, EU: 13, India: 17, LATAM: 21 };
-  // Each geo has FY 24-25, FY 25-26, FY 26-27, FY 27-28 (4 cols)
+
+  // Auto-detect header row and column mapping
+  let headerRow = -1;
+  let fyColsOverall = {};
+  let geoStartCols = {};
+
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const row = rows[i];
+    for (let j = 0; j < row.length; j++) {
+      const val = (row[j] || '').trim();
+      if (val === 'FY 23-24' || val === 'FY 24-25') {
+        headerRow = i;
+        break;
+      }
+    }
+    if (headerRow >= 0) break;
+  }
+
+  // If no explicit header found, check if gviz merged headers (first row has FY cols)
+  if (headerRow < 0) headerRow = 0;
+
+  const hdr = rows[headerRow];
+  // Find FY columns for Overall
+  for (let j = 0; j < hdr.length; j++) {
+    const val = (hdr[j] || '').trim();
+    if (val === 'FY 23-24') fyColsOverall['FY 23-24'] = j;
+    if (val === 'FY 24-25' && !fyColsOverall['FY 24-25']) fyColsOverall['FY 24-25'] = j;
+    if (val === 'FY 25-26' && !fyColsOverall['FY 25-26']) fyColsOverall['FY 25-26'] = j;
+    if (val === 'FY 26-27' && !fyColsOverall['FY 26-27']) fyColsOverall['FY 26-27'] = j;
+    if (val === 'FY 27-28' && !fyColsOverall['FY 27-28']) fyColsOverall['FY 27-28'] = j;
+  }
+
+  // Find geo start columns by looking for repeated FY 24-25 occurrences
+  const fy2425Cols = [];
+  for (let j = 0; j < hdr.length; j++) {
+    if ((hdr[j] || '').trim() === 'FY 24-25') fy2425Cols.push(j);
+  }
+  // First FY 24-25 after col 6 = US+ROW, then EU, India, LATAM
+  const geoNames = ['US + ROW', 'EU', 'India', 'LATAM'];
+  const geoFy2425 = fy2425Cols.filter(c => c > (fyColsOverall['FY 27-28'] || 6));
+  for (let g = 0; g < Math.min(geoNames.length, geoFy2425.length); g++) {
+    geoStartCols[geoNames[g]] = geoFy2425[g];
+  }
+
+  // Fallback defaults if auto-detect fails
+  if (!fyColsOverall['FY 26-27']) fyColsOverall = { 'FY 23-24': 2, 'FY 24-25': 3, 'FY 25-26': 4, 'FY 26-27': 5, 'FY 27-28': 6 };
+  if (!geoStartCols['US + ROW']) geoStartCols = { 'US + ROW': 8, EU: 13, India: 17, LATAM: 21 };
 
   const lineItems = [];
-  for (let i = 3; i < rows.length; i++) {
+  for (let i = headerRow + 1; i < rows.length; i++) {
     const label = (rows[i][1] || '').trim();
     if (!label) continue;
+    // Skip header-like rows
+    if (label.startsWith('All Values') || label.startsWith('Geo wise')) continue;
     const item = { label, row: i };
     // Overall values
     item.overall = {};
