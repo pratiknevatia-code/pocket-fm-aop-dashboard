@@ -288,21 +288,29 @@ function parseOverallSummary() {
     if (val === 'FY 27-28' && !fyColsOverall['FY 27-28']) fyColsOverall['FY 27-28'] = j;
   }
 
-  // Find geo start columns by looking for repeated FY 24-25 occurrences
-  const fy2425Cols = [];
-  for (let j = 0; j < hdr.length; j++) {
-    if ((hdr[j] || '').trim() === 'FY 24-25') fy2425Cols.push(j);
-  }
-  // First FY 24-25 after col 6 = US+ROW, then EU, India, LATAM
+  // Find geo start columns by looking for cells containing "FY 24-25" after overall section
+  // gviz merges headers like "EU FY 24-25" or "Geo wise --> US + ROW FY 24-25"
   const geoNames = ['US + ROW', 'EU', 'India', 'LATAM'];
-  const geoFy2425 = fy2425Cols.filter(c => c > (fyColsOverall['FY 27-28'] || 6));
-  for (let g = 0; g < Math.min(geoNames.length, geoFy2425.length); g++) {
-    geoStartCols[geoNames[g]] = geoFy2425[g];
+  const overallEnd = fyColsOverall['FY 27-28'] || 6;
+  for (let j = overallEnd + 1; j < hdr.length; j++) {
+    const val = (hdr[j] || '').trim();
+    if (val.includes('FY 24-25') || val.includes('FY 25-26')) {
+      // Determine which geo this belongs to
+      if (val.includes('US') || val.includes('ROW') || val.includes('Geo wise')) {
+        geoStartCols['US + ROW'] = j;
+      } else if (val.includes('EU') && !geoStartCols['EU']) {
+        geoStartCols['EU'] = j;
+      } else if (val.includes('India') && !geoStartCols['India']) {
+        geoStartCols['India'] = j;
+      } else if (val.includes('LATAM') && !geoStartCols['LATAM']) {
+        geoStartCols['LATAM'] = j;
+      }
+    }
   }
 
   // Fallback defaults if auto-detect fails
   if (!fyColsOverall['FY 26-27']) fyColsOverall = { 'FY 23-24': 2, 'FY 24-25': 3, 'FY 25-26': 4, 'FY 26-27': 5, 'FY 27-28': 6 };
-  if (!geoStartCols['US + ROW']) geoStartCols = { 'US + ROW': 8, EU: 13, India: 17, LATAM: 21 };
+  if (!geoStartCols['US + ROW']) geoStartCols = { 'US + ROW': 8, EU: 13, India: 18, LATAM: 23 };
 
   const lineItems = [];
   for (let i = headerRow + 1; i < rows.length; i++) {
